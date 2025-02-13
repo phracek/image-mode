@@ -1,0 +1,50 @@
+FROM quay.io/centos-bootc/centos-bootc:stream9
+
+ENV POSTGRESQL_VERSION=13 \
+    HOME=/var/lib/pgsql \
+    PGUSER=postgres \
+    STI_SCRIPTS_PATH=/usr/libexec/s2i \
+    APP_ROOT=/opt/app-root \
+    HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    PLATFORM="el9" \
+    APP_DATA=/opt/app-root
+
+ENV SUMMARY="PostgreSQL is an advanced Object-Relational database management system" \
+    DESCRIPTION="PostgreSQL is an advanced Object-Relational database management system (DBMS). \
+The image contains the client and server programs that you'll need to \
+create, run, maintain and access a PostgreSQL DBMS server."
+
+ENV INSTALL_PKGS="rsync tar bind-utils nss_wrapper-libs glibc-locale-source xz pgaudit" \
+    INSTALL_PKGS="$INSTALL_PKGS procps-ng util-linux postgresql-upgrade"
+EXPOSE 5432
+
+COPY root/usr/libexec/fix-permissions /usr/libexec/fix-permissions
+
+# This image must forever use UID 26 for postgres user so our volumes are
+# safe in the future. This should *never* change, the last test is there
+# to make sure of that.
+RUN PSQL_PKGS="postgresql-server postgresql-contrib" && \
+    dnf -y --setopt=tsflags=nodocs install $INSTALL_PKGS $PSQL_PKGS && \
+    postgres -V | grep -qe "$POSTGRESQL_VERSION\." && echo "Found VERSION $POSTGRESQL_VERSION" && \
+    dnf -y clean all --enablerepo='*' && \
+    test "$(id postgres)" = "uid=26(postgres) gid=26(postgres) groups=26(postgres)" && \
+    mkdir -p /var/lib/pgsql/data && \
+    mkdir -p /run/postgresql && \
+    mkdir -p $APP_DATA && \
+    /usr/libexec/fix-permissions /var/lib/pgsql /run/postgresql
+
+COPY root /
+COPY ./s2i/bin/ $STI_SCRIPTS_PATH
+
+ENV CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/postgresql
+
+RUN ln -s /usr/bin/run-postgresql $STI_SCRIPTS_PATH/run
+
+RUN usermod -a -G root postgres && \
+    /usr/libexec/fix-permissions --read-only "$APP_DATA"
+
+USER 26
+
+ENTRYPOINT ["container-entrypoint"]
+CMD ["run-postgresql"]
