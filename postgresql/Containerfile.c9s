@@ -44,7 +44,7 @@ RUN ln -s /usr/bin/run-postgresql $STI_SCRIPTS_PATH/run
 RUN usermod -a -G root postgres && \
     /usr/libexec/fix-permissions --read-only "$APP_DATA"
 
-USER 26
+# USER 26
 
 ENTRYPOINT ["container-entrypoint"]
-CMD ["run-postgresql"]
+# CMD ["run-postgresql"]
