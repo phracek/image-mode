@@ -1,7 +1,8 @@
 #!/bin/bash
 
 export ENABLE_REPLICATION=${ENABLE_REPLICATION:-false}
-
+export CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/postgresql
+export APP_DATA=/opt/app-root
 set -eu
 export_vars=$(cgroup-limits) ; export $export_vars
 
